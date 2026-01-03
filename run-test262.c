@@ -40,6 +40,10 @@
 #include <unistd.h>
 #endif
 
+#ifdef __sun
+#include <sys/stat.h>
+#endif
+
 #include "cutils.h"
 #include "list.h"
 #include "quickjs.h"
@@ -441,6 +445,24 @@ static void find_test_files(const char *path)
         } while (FindNextFileA(h, &d));
         FindClose(h);
     }
+#elif __sun
+	struct dirent *d, **ds = NULL;
+    int i, n;
+
+    n = scandir(path, &ds, NULL, alphasort);
+    for (i = 0; i < n; i++) {
+        d = ds[i];
+        char fullpath[PATH_MAX];
+        snprintf(fullpath, sizeof(fullpath), "%s/%s", path, d->d_name);
+        struct stat stbuf;
+        int isDir = 0;
+        if (stat(fullpath, &stbuf) == 0) {
+            isDir = S_ISDIR(stbuf.st_mode);
+        }
+        consider_test_file(path, d->d_name, isDir);
+        free(d);
+    }
+    free(ds);
 #else
     struct dirent *d, **ds = NULL;
     int i, n;
